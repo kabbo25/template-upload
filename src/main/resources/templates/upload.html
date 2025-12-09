@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Upload - Template Upload</title>
+    <title>File Upload - jQuery AJAX</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -27,7 +28,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
             width: 100%;
-            max-width: 600px;
+            max-width: 700px;
         }
 
         h1 {
@@ -50,11 +51,17 @@
             margin-bottom: 20px;
             transition: all 0.3s ease;
             background: #fafafa;
+            cursor: pointer;
         }
 
-        .upload-area:hover {
+        .upload-area:hover,
+        .upload-area.dragover {
             border-color: #667eea;
             background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            transform: scale(1.02);
         }
 
         .upload-icon {
@@ -88,11 +95,148 @@
             font-size: 0.85rem;
         }
 
-        .submit-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* Selected Files List */
+        .selected-files {
+            margin: 20px 0;
+        }
+
+        .selected-files h3 {
+            color: #333;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .file-item .file-icon {
+            font-size: 1.5rem;
+        }
+
+        .file-item .file-info {
+            flex: 1;
+        }
+
+        .file-item .file-name {
+            font-weight: 500;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .file-item .file-size {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .file-item .file-status {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        .file-item .status-valid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .file-item .status-invalid {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .file-item .remove-btn {
+            background: #ef4444;
             color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .file-item .remove-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar-wrapper {
+            background: #e5e7eb;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        /* Buttons */
+        .btn-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .submit-btn,
+        .clear-btn {
+            flex: 1;
+            padding: 14px;
             border: none;
             border-radius: 8px;
             font-size: 1rem;
@@ -101,7 +245,12 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .submit-btn:hover {
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .submit-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
@@ -110,21 +259,34 @@
             background: #ccc;
             cursor: not-allowed;
             transform: none;
-            box-shadow: none;
         }
 
-        .selected-files {
-            margin: 15px 0;
-            text-align: left;
-            font-size: 0.9rem;
-            color: #555;
+        .clear-btn {
+            background: #f3f4f6;
+            color: #374151;
         }
 
+        .clear-btn:hover {
+            background: #e5e7eb;
+        }
+
+        /* Alerts */
         .alert {
             padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 0.95rem;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .alert-error {
@@ -139,14 +301,43 @@
             border: 1px solid #6ee7b7;
         }
 
+        /* Results */
         .results {
             margin-top: 25px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
         }
 
         .results h3 {
             color: #333;
             margin-bottom: 15px;
             font-size: 1.1rem;
+        }
+
+        .summary {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .summary-item {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .summary-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .summary-failure {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .result-item {
@@ -192,97 +383,396 @@
             margin-top: 3px;
         }
 
-        .summary {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .summary-item {
-            padding: 8px 15px;
-            border-radius: 20px;
+        /* Validation tooltip */
+        .validation-rules {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
             font-size: 0.85rem;
-            font-weight: 500;
         }
 
-        .summary-success {
-            background: #d1fae5;
-            color: #065f46;
+        .validation-rules h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
         }
 
-        .summary-failure {
-            background: #fee2e2;
-            color: #991b1b;
+        .validation-rules ul {
+            list-style: none;
+            color: #666;
+        }
+
+        .validation-rules li {
+            margin-bottom: 5px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .validation-rules li::before {
+            content: "•";
+            position: absolute;
+            left: 5px;
+            color: #667eea;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>File Upload</h1>
-        <p class="subtitle">Upload images, CSS, and HTML files to their respective folders</p>
+        <p class="subtitle">Upload images, CSS, and HTML files with drag & drop support</p>
 
-        <!-- Error Alert -->
-        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+        <!-- Validation Rules -->
+        <div class="validation-rules">
+            <h4>Allowed Files</h4>
+            <ul>
+                <li>Images: JPG, PNG, GIF, WEBP, SVG, ICO, BMP (max 5MB each)</li>
+                <li>Stylesheets: CSS</li>
+                <li>Markup: HTML, HTM</li>
+            </ul>
+        </div>
 
-        <!-- Upload Form -->
-        <form th:action="@{/upload}" method="post" enctype="multipart/form-data" id="uploadForm">
-            <div class="upload-area">
-                <div class="upload-icon">📁</div>
-                <input type="file"
-                       name="files"
-                       id="fileInput"
-                       class="file-input"
-                       multiple
-                       accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.ico,.bmp,.css,.html,.htm">
-                <label for="fileInput" class="file-label">Choose Files</label>
-                <div class="selected-files" id="selectedFiles"></div>
-                <p class="file-types">Allowed: JPG, PNG, GIF, WEBP, SVG, ICO, BMP, CSS, HTML</p>
+        <!-- Alert Messages -->
+        <div id="alertBox" class="alert"></div>
+
+        <!-- Upload Area -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <input type="file"
+                   id="fileInput"
+                   class="file-input"
+                   multiple
+                   accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.ico,.bmp,.css,.html,.htm">
+            <label for="fileInput" class="file-label">Choose Files</label>
+            <p style="margin-top: 10px; color: #888;">or drag and drop files here</p>
+            <p class="file-types">Max 5MB per file</p>
+        </div>
+
+        <!-- Selected Files List -->
+        <div class="selected-files" id="selectedFilesContainer" style="display: none;">
+            <h3>Selected Files (<span id="fileCount">0</span>)</h3>
+            <div id="fileList"></div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progressBar"></div>
+                <span class="progress-text" id="progressText">0%</span>
             </div>
-            <button type="submit" class="submit-btn" id="submitBtn" disabled>Upload Files</button>
-        </form>
+            <div class="progress-info">
+                <span id="uploadedSize">0 KB</span>
+                <span id="totalSize">0 KB</span>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="btn-container">
+            <button type="button" class="clear-btn" id="clearBtn" style="display: none;">Clear All</button>
+            <button type="button" class="submit-btn" id="submitBtn" disabled>Upload Files</button>
+        </div>
 
         <!-- Upload Results -->
-        <div th:if="${results}" class="results">
+        <div class="results" id="resultsContainer">
             <h3>Upload Results</h3>
-
-            <div class="summary">
-                <span th:if="${successCount > 0}" class="summary-item summary-success">
-                    ✓ <span th:text="${successCount}"></span> succeeded
-                </span>
-                <span th:if="${failureCount > 0}" class="summary-item summary-failure">
-                    ✗ <span th:text="${failureCount}"></span> failed
-                </span>
-            </div>
-
-            <div th:each="result : ${results}"
-                 class="result-item"
-                 th:classappend="${result.success} ? 'success' : 'failure'">
-                <span class="result-icon" th:text="${result.success} ? '✓' : '✗'"></span>
-                <div class="result-info">
-                    <div class="result-filename" th:text="${result.filename}"></div>
-                    <div th:if="${result.success}" class="result-path">
-                        Saved to: <span th:text="${result.savedPath}"></span>
-                    </div>
-                    <div th:unless="${result.success}" class="result-message" th:text="${result.message}"></div>
-                </div>
-            </div>
+            <div class="summary" id="summary"></div>
+            <div id="resultsList"></div>
         </div>
     </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const selectedFiles = document.getElementById('selectedFiles');
-        const submitBtn = document.getElementById('submitBtn');
+        $(document).ready(function() {
+            // File storage
+            let selectedFiles = [];
 
-        fileInput.addEventListener('change', function() {
-            const files = this.files;
-            if (files.length > 0) {
-                selectedFiles.innerHTML = '<strong>' + files.length + ' file(s) selected:</strong><br>' +
-                    Array.from(files).map(f => '• ' + f.name).join('<br>');
-                submitBtn.disabled = false;
-            } else {
-                selectedFiles.innerHTML = '';
-                submitBtn.disabled = true;
+            // Allowed extensions
+            const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp', 'css', 'html', 'htm'];
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+            // File type icons
+            const FILE_ICONS = {
+                'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️',
+                'webp': '🖼️', 'svg': '🖼️', 'ico': '🖼️', 'bmp': '🖼️',
+                'css': '🎨', 'html': '📄', 'htm': '📄'
+            };
+
+            // Elements
+            const $uploadArea = $('#uploadArea');
+            const $fileInput = $('#fileInput');
+            const $fileList = $('#fileList');
+            const $fileCount = $('#fileCount');
+            const $selectedFilesContainer = $('#selectedFilesContainer');
+            const $submitBtn = $('#submitBtn');
+            const $clearBtn = $('#clearBtn');
+            const $progressContainer = $('#progressContainer');
+            const $progressBar = $('#progressBar');
+            const $progressText = $('#progressText');
+            const $uploadedSize = $('#uploadedSize');
+            const $totalSize = $('#totalSize');
+            const $alertBox = $('#alertBox');
+            const $resultsContainer = $('#resultsContainer');
+            const $summary = $('#summary');
+            const $resultsList = $('#resultsList');
+
+            // Drag and drop handlers
+            $uploadArea.on('dragover dragenter', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $(this).addClass('dragover');
+            });
+
+            $uploadArea.on('dragleave dragend drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $(this).removeClass('dragover');
+            });
+
+            $uploadArea.on('drop', function(e) {
+                const files = e.originalEvent.dataTransfer.files;
+                handleFiles(files);
+            });
+
+            // Click to select files
+            $uploadArea.on('click', function(e) {
+                if (e.target === this || $(e.target).hasClass('upload-icon') || e.target.tagName === 'P') {
+                    $fileInput.click();
+                }
+            });
+
+            // File input change
+            $fileInput.on('change', function() {
+                handleFiles(this.files);
+                this.value = ''; // Reset to allow selecting same files again
+            });
+
+            // Handle selected files
+            function handleFiles(files) {
+                hideAlert();
+                hideResults();
+
+                for (let file of files) {
+                    // Check for duplicates
+                    const isDuplicate = selectedFiles.some(f => f.name === file.name && f.size === file.size);
+                    if (!isDuplicate) {
+                        selectedFiles.push(file);
+                    }
+                }
+
+                renderFileList();
+            }
+
+            // Validate file
+            function validateFile(file) {
+                const extension = file.name.split('.').pop().toLowerCase();
+                const errors = [];
+
+                if (!ALLOWED_EXTENSIONS.includes(extension)) {
+                    errors.push('Invalid file type');
+                }
+
+                if (file.size > MAX_FILE_SIZE) {
+                    errors.push('File too large (max 5MB)');
+                }
+
+                return {
+                    valid: errors.length === 0,
+                    errors: errors
+                };
+            }
+
+            // Format file size
+            function formatSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Render file list
+            function renderFileList() {
+                $fileList.empty();
+
+                let validCount = 0;
+
+                selectedFiles.forEach((file, index) => {
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    const validation = validateFile(file);
+                    const icon = FILE_ICONS[extension] || '📎';
+
+                    if (validation.valid) validCount++;
+
+                    const $item = $(`
+                        <div class="file-item" data-index="${index}">
+                            <span class="file-icon">${icon}</span>
+                            <div class="file-info">
+                                <div class="file-name">${escapeHtml(file.name)}</div>
+                                <div class="file-size">${formatSize(file.size)}</div>
+                            </div>
+                            <span class="file-status ${validation.valid ? 'status-valid' : 'status-invalid'}">
+                                ${validation.valid ? '✓ Valid' : validation.errors.join(', ')}
+                            </span>
+                            <button type="button" class="remove-btn" data-index="${index}" title="Remove file">×</button>
+                        </div>
+                    `);
+
+                    $fileList.append($item);
+                });
+
+                $fileCount.text(selectedFiles.length);
+
+                if (selectedFiles.length > 0) {
+                    $selectedFilesContainer.show();
+                    $clearBtn.show();
+                    $submitBtn.prop('disabled', validCount === 0);
+                } else {
+                    $selectedFilesContainer.hide();
+                    $clearBtn.hide();
+                    $submitBtn.prop('disabled', true);
+                }
+            }
+
+            // Remove file
+            $(document).on('click', '.remove-btn', function(e) {
+                e.stopPropagation();
+                const index = $(this).data('index');
+                selectedFiles.splice(index, 1);
+                renderFileList();
+            });
+
+            // Clear all files
+            $clearBtn.on('click', function() {
+                selectedFiles = [];
+                renderFileList();
+                hideAlert();
+                hideResults();
+            });
+
+            // Upload files
+            $submitBtn.on('click', function() {
+                const validFiles = selectedFiles.filter(file => validateFile(file).valid);
+
+                if (validFiles.length === 0) {
+                    showAlert('error', 'No valid files to upload');
+                    return;
+                }
+
+                uploadFiles(validFiles);
+            });
+
+            // AJAX upload with progress
+            function uploadFiles(files) {
+                const formData = new FormData();
+                files.forEach(file => formData.append('files', file));
+
+                // Calculate total size
+                const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+                $totalSize.text(formatSize(totalBytes));
+
+                // Show progress
+                $progressContainer.addClass('active');
+                $submitBtn.prop('disabled', true);
+                $clearBtn.prop('disabled', true);
+
+                $.ajax({
+                    url: '/api/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    xhr: function() {
+                        const xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', function(e) {
+                            if (e.lengthComputable) {
+                                const percent = Math.round((e.loaded / e.total) * 100);
+                                $progressBar.css('width', percent + '%');
+                                $progressText.text(percent + '%');
+                                $uploadedSize.text(formatSize(e.loaded));
+                            }
+                        }, false);
+                        return xhr;
+                    },
+                    success: function(response) {
+                        showResults(response);
+                        showAlert('success', response.message);
+
+                        // Clear uploaded files from selection
+                        selectedFiles = [];
+                        renderFileList();
+                    },
+                    error: function(xhr) {
+                        let message = 'Upload failed';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            message = xhr.responseJSON.message;
+                        }
+                        showAlert('error', message);
+                    },
+                    complete: function() {
+                        setTimeout(() => {
+                            $progressContainer.removeClass('active');
+                            $progressBar.css('width', '0%');
+                            $progressText.text('0%');
+                            $submitBtn.prop('disabled', selectedFiles.length === 0);
+                            $clearBtn.prop('disabled', false);
+                        }, 500);
+                    }
+                });
+            }
+
+            // Show alert
+            function showAlert(type, message) {
+                $alertBox
+                    .removeClass('alert-error alert-success show')
+                    .addClass('alert-' + type + ' show')
+                    .text(message);
+            }
+
+            // Hide alert
+            function hideAlert() {
+                $alertBox.removeClass('show');
+            }
+
+            // Show results
+            function showResults(response) {
+                $summary.empty();
+                $resultsList.empty();
+
+                if (response.successCount > 0) {
+                    $summary.append(`<span class="summary-item summary-success">✓ ${response.successCount} succeeded</span>`);
+                }
+                if (response.failureCount > 0) {
+                    $summary.append(`<span class="summary-item summary-failure">✗ ${response.failureCount} failed</span>`);
+                }
+
+                response.results.forEach(result => {
+                    const $item = $(`
+                        <div class="result-item ${result.success ? 'success' : 'failure'}">
+                            <span class="result-icon">${result.success ? '✓' : '✗'}</span>
+                            <div class="result-info">
+                                <div class="result-filename">${escapeHtml(result.filename)}</div>
+                                ${result.success
+                                    ? `<div class="result-path">Saved to: ${escapeHtml(result.savedPath)}</div>`
+                                    : `<div class="result-message">${escapeHtml(result.message)}</div>`
+                                }
+                            </div>
+                        </div>
+                    `);
+                    $resultsList.append($item);
+                });
+
+                $resultsContainer.addClass('show');
+            }
+
+            // Hide results
+            function hideResults() {
+                $resultsContainer.removeClass('show');
+            }
+
+            // Escape HTML
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
         });
     </script>

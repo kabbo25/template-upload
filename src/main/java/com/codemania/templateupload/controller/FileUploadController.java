@@ -1,14 +1,15 @@
 package com.codemania.templateupload.controller;
 
 import com.codemania.templateupload.dto.FileUploadResult;
+import com.codemania.templateupload.dto.UploadResponse;
 import com.codemania.templateupload.service.FileUploadService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
@@ -22,29 +23,38 @@ public class FileUploadController {
     }
 
     @GetMapping("/")
-    public String showUploadForm(Model model) {
+    public String showUploadForm() {
         return "upload";
     }
 
-    @PostMapping("/upload")
-    public String handleFileUpload(
-            @RequestParam("files") MultipartFile[] files,
-            RedirectAttributes redirectAttributes
+    /**
+     * AJAX endpoint for file upload.
+     * Returns JSON response with upload results.
+     */
+    @PostMapping("/api/upload")
+    @ResponseBody
+    public ResponseEntity<UploadResponse> handleFileUpload(
+            @RequestParam("files") MultipartFile[] files
     ) {
-        if (files == null || files.length == 0 || (files.length == 1 && files[0].isEmpty())) {
-            redirectAttributes.addFlashAttribute("error", "Please select at least one file to upload");
-            return "redirect:/";
+        if (files == null || files.length == 0) {
+            return ResponseEntity.badRequest()
+                    .body(UploadResponse.error("No files provided"));
         }
 
-        List<FileUploadResult> results = fileUploadService.saveFiles(files);
+        // Filter out empty files
+        List<MultipartFile> validFiles = java.util.Arrays.stream(files)
+                .filter(f -> !f.isEmpty())
+                .toList();
 
-        long successCount = results.stream().filter(FileUploadResult::success).count();
-        long failureCount = results.size() - successCount;
+        if (validFiles.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(UploadResponse.error("No valid files to upload"));
+        }
 
-        redirectAttributes.addFlashAttribute("results", results);
-        redirectAttributes.addFlashAttribute("successCount", successCount);
-        redirectAttributes.addFlashAttribute("failureCount", failureCount);
+        List<FileUploadResult> results = fileUploadService.saveFiles(
+                validFiles.toArray(new MultipartFile[0])
+        );
 
-        return "redirect:/";
+        return ResponseEntity.ok(UploadResponse.success(results));
     }
 }

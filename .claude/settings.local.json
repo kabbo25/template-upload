@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(git -C /Users/kabboghosh/ghq/github.com/kabbo25/spring-boot/template-upload/ log --oneline)",
+      "Bash(git -C /Users/kabboghosh/ghq/github.com/kabbo25/spring-boot/template-upload/ status)",
+      "Bash(./mvnw compile:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: implement multi-file upload system with type-based routing\n\n- Add Thymeleaf dependency for server-side templating\n- Create FileUploadService with extension-based folder routing\n  - Images (.jpg, .png, .gif, etc.) → static/images/\n  - CSS files → static/css/\n  - HTML files → static/html/\n- Create FileUploadController with POST-Redirect-GET pattern\n- Create responsive upload UI with drag-drop styling\n- Configure multipart upload (5MB per file, 25MB total)\n- Overwrite duplicate files by design\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git reset HEAD -- .claude/ 2025-12-09-caveat-the-messages-below-were-generated-by-the-u.txt src/main/resources/static/html/http.md.html src/main/resources/static/images/)"
+    ]
+  }
+}
